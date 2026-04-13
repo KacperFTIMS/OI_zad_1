@@ -74,13 +74,10 @@ def super_funkacja(X, y, name, ax_s, ax_b, ax_w, pg):
         print(
             f"{name.upper()} | K-Means (k={k_values[idx_best]}): Silhouette={scores[idx_best]:.3f}, ARI={all_ari[idx_best]:.3f}, HOM={all_homo[idx_best]:.3f}, COM={all_com[idx_best]:.3f}")
 
-        # Rysowanie wykresów liniowych (Silhouette + Metryki zewn.) dla pg=5 na przekazanym obiekcie ax_s
         if ax_s is not None:
-            # Silhouette na innej osi (bliźniak) lub na tym samym z dopiskiem
             ax_s.plot(k_values, all_ari, marker='o', label='ARI', color='tab:blue')
             ax_s.plot(k_values, all_homo, marker='x', label='HOM', color='tab:orange')
             ax_s.plot(k_values, all_com, marker='^', label='COM', color='tab:green')
-            # Dodajemy Silhouette (przerywaną czerwoną linią) do tego samego wykresu
             ax_s.plot(k_values, scores, marker='s', linestyle='--', label='Silhouette', color='tab:red')
 
             ax_s.set_title(f"{name.upper()} - K-Means Metryki")
@@ -88,9 +85,8 @@ def super_funkacja(X, y, name, ax_s, ax_b, ax_w, pg):
             ax_s.legend()
             ax_s.grid(True)
 
-        # Rysowanie punktów tylko dla zbioru Iris
         if name == "iris":
-            fig_rz, ax_rz = plt.subplots(1, 2, figsize=(10, 4))
+            fig_rz, ax_rz = plt.subplots(1, 2, figsize=(15, 4))
             ax_rz[0].scatter(X[:, 2], X[:, 3], c=y, cmap='viridis', edgecolor='k')
             ax_rz[0].set_xlabel("Długość płatka (Petal Length)")
             ax_rz[0].set_ylabel("Szerokość płatka (Petal Width)")
@@ -102,9 +98,7 @@ def super_funkacja(X, y, name, ax_s, ax_b, ax_w, pg):
             ax_rz[1].set_title("Zbiór Iris: Nakładanie się klas")
 
             fig_rz.tight_layout()
-            # ZAPISUJEMY UŻYWAJĄC OBIEKTU fig_rz:
             fig_rz.savefig("iris_projections.png")
-            # ZAMYKAMY TEN WYKRES, ABY NIE BLOKOWAŁ METRYK:
             plt.close(fig_rz)
 
 
@@ -112,7 +106,17 @@ def dbscan(X, y, name, ax_s, ax_b, ax_w, pg):
     scaler = StandardScaler()
     X_scaled = scaler.fit_transform(X)
 
-    eps_values = np.arange(0.1, 1.6, 0.1)
+    eps_dict = {
+        "iris": np.arange(0.2, 1.5, 0.1),
+        "wine": np.arange(0.5, 3.5, 0.2),
+        "2_1": np.arange(0.1, 1.6, 0.1),
+        "2_2": np.arange(0.1, 0.8, 0.05),
+        "2_3": np.arange(0.1, 0.6, 0.05),
+        "3_1": np.arange(0.1, 1.0, 0.05)
+        # "3_2": np.arange(),
+        # "3_3": np.arange()
+    }
+    eps_values = eps_dict.get(name, np.arange(0.1, 1.6, 0.1))
 
     scores = []
     all_ari = []
@@ -127,8 +131,10 @@ def dbscan(X, y, name, ax_s, ax_b, ax_w, pg):
 
         all_predictions.append(y_db)
 
-        n_clusters = len(set(y_db))
+        n_clusters = len(set(y_db)) - (1 if -1 in y_db else 0)
         n_clusters_list.append(n_clusters)
+
+        print(f"TEST TEST TEST DLA EPS {eps}, n_clusters {n_clusters}")
 
         if 1 < n_clusters < len(X_scaled):
             score = silhouette_score(X_scaled, y_db)
@@ -146,6 +152,8 @@ def dbscan(X, y, name, ax_s, ax_b, ax_w, pg):
 
         print(f"Wyniki dla eps {eps}, zbioru {nazwa} - DBSCAN: ARI={ari_km:.3f}, HOM={hom_km:.3f}, COM={com_km:.3f}, ")
 
+    x_labels = [f"{eps:.2f}\n({k})" for eps, k in zip(eps_values, n_clusters_list)]
+
     if pg == 2:
         idx_best = np.argmax(scores)
         idx_worst = np.argmin(scores)
@@ -154,6 +162,9 @@ def dbscan(X, y, name, ax_s, ax_b, ax_w, pg):
         ax_s.set_title(f"Zbiór {name} - Silhouette")
         ax_s.set_xlabel("eps")
         ax_s.grid(True)
+
+        ax_s.set_xticks(eps_values)
+        ax_s.set_xticklabels(x_labels, fontsize=8)
 
         voronoi_buff(X_scaled, y, name, all_predictions, ax_b, ax_w,
                      ax_s, eps_values, scores, idx_best, idx_worst)
@@ -169,6 +180,9 @@ def dbscan(X, y, name, ax_s, ax_b, ax_w, pg):
         ax_s.set_xlabel("eps")
         ax_s.legend()
         ax_s.grid(True)
+
+        ax_s.set_xticks(eps_values)
+        ax_s.set_xticklabels(x_labels, fontsize=8)
 
         voronoi_buff(X_scaled, y, name, all_predictions, ax_b, ax_w,
                      ax_s, eps_values, all_ari, idx_best, idx_worst)
@@ -190,6 +204,9 @@ def dbscan(X, y, name, ax_s, ax_b, ax_w, pg):
         ax_s.set_xlabel("eps")
         ax_s.legend()
         ax_s.grid(True)
+
+        ax_s.set_xticks(eps_values)
+        ax_s.set_xticklabels(x_labels, fontsize=8)
 
 def voronoi_buff(X_scaled, y, name, all_predictions, ax_b, ax_w, ax_s, values, scores, idx_best, idx_worst):
     # Woronoj najlepszy
@@ -218,7 +235,7 @@ def plot_voronoi_diagram(X, y_true, y_pred, ax):
     Z = nn.predict(np.c_[xx.ravel(), yy.ravel()])
     Z = Z.reshape(xx.shape)
 
-    custom_cmap = 'tab10'
+    custom_cmap = 'tab20'
     ax.contourf(xx, yy, Z, alpha=0.4, cmap=custom_cmap)
 
     vor = Voronoi(X)
@@ -240,7 +257,7 @@ def plot_voronoi_diagram(X, y_true, y_pred, ax):
 lista_zbiorow = ["2_1", "2_2", "2_3", "3_1", "3_2", "3_3"]
 lista_real = ["iris", "wine"]
 
-for pg in [5]:
+for pg in [1, 2, 3, 4, 5]:
     if pg in [1, 2, 3, 4]:
 
         fig, axes = plt.subplots(6, 3, figsize=(18, 30))
@@ -274,7 +291,7 @@ for pg in [5]:
             else:
                 X, y = load_wine(return_X_y=True)
 
-            fig_metryki, ax_metryki = plt.subplots(1, 2, figsize=(12, 5))
+            fig_metryki, ax_metryki = plt.subplots(1, 2, figsize=(15, 5))
             # Ponieważ dla pg=5 nie rysujemy siatki z Woronojem,
             # przekazujemy do funkcji wartości None zamiast obiektów osi ax
             super_funkacja(X, y, nazwa, ax_metryki[0], None, None, pg)
